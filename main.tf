@@ -1,0 +1,27 @@
+data "azurerm_key_vault_secret" "shared_access_policy_key" {
+  for_each     = { for k, v in var.stream_analytics_output_eventhubs : k => v if v.shared_access_policy_key_key_vault_id != null && v.shared_access_policy_key_key_vault_secret_name != null }
+  name         = each.value.shared_access_policy_key_key_vault_secret_name
+  key_vault_id = each.value.shared_access_policy_key_key_vault_id
+}
+resource "azurerm_stream_analytics_output_eventhub" "stream_analytics_output_eventhubs" {
+  for_each = var.stream_analytics_output_eventhubs
+
+  eventhub_name             = each.value.eventhub_name
+  name                      = each.value.name
+  resource_group_name       = each.value.resource_group_name
+  servicebus_namespace      = each.value.servicebus_namespace
+  stream_analytics_job_name = each.value.stream_analytics_job_name
+  authentication_mode       = each.value.authentication_mode
+  partition_key             = each.value.partition_key
+  property_columns          = each.value.property_columns
+  shared_access_policy_key  = each.value.shared_access_policy_key != null ? each.value.shared_access_policy_key : try(data.azurerm_key_vault_secret.shared_access_policy_key[each.key].value, null)
+  shared_access_policy_name = each.value.shared_access_policy_name
+
+  serialization {
+    encoding        = each.value.serialization.encoding
+    field_delimiter = each.value.serialization.field_delimiter
+    format          = each.value.serialization.format
+    type            = each.value.serialization.type
+  }
+}
+
